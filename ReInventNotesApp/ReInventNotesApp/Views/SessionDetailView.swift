@@ -10,32 +10,45 @@ struct SessionDetailView: View {
     @State private var showingTextInput = false
     @State private var newText = ""
     @FocusState private var isTextFieldFocused: Bool
-    
+    @State private var scrollToBottom = false
+
     var body: some View {
         VStack {
             // Notes Content
-            ScrollView {
-                LazyVStack(spacing: 12) {
-                    ForEach(session.content) { element in
-                        NoteElementView(element: element, session: session)
-                            .environmentObject(themeManager)
-                            .environmentObject(notesManager)
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(spacing: 12) {
+                        ForEach(session.content) { element in
+                            NoteElementView(element: element, session: session)
+                                .environmentObject(themeManager)
+                                .environmentObject(notesManager)
+                                .id(element.id)
+                        }
+                    }
+                    .padding()
+                }
+                .onChange(of: session.content.count) {
+                    // Auto-scroll to bottom when new content is added
+                    if let lastElement = session.content.last {
+                        withAnimation {
+                            proxy.scrollTo(lastElement.id, anchor: .bottom)
+                        }
                     }
                 }
-                .padding()
             }
             
             // Input Controls (outside List)
             VStack(spacing: 16) {
                 if showingTextInput {
-                    HStack {
+                    HStack(alignment: .top) {
                         TextField("Type your note...", text: $newText, axis: .vertical)
                             .textFieldStyle(PlainTextFieldStyle())
                             .padding(12)
                             .background(themeManager.theme.cardBackground)
                             .cornerRadius(8)
                             .focused($isTextFieldFocused)
-                        
+                            .lineLimit(5...10)
+
                         Button("Add") {
                             if !newText.isEmpty {
                                 notesManager.addTextElement(to: session, content: newText)
@@ -126,14 +139,15 @@ struct NoteElementView: View {
                 switch element {
                 case .text(let textElement):
                     if isEditing {
-                        HStack {
+                        HStack(alignment: .top) {
                             TextField("Edit text...", text: $editText, axis: .vertical)
                                 .textFieldStyle(PlainTextFieldStyle())
                                 .padding(8)
                                 .background(themeManager.theme.backgroundColor)
                                 .cornerRadius(6)
                                 .focused($isEditFieldFocused)
-                            
+                                .lineLimit(5...10)
+
                             Button("Save") {
                                 if !editText.isEmpty {
                                     notesManager.updateTextElement(in: session, elementId: element.id, newContent: editText)
@@ -148,6 +162,9 @@ struct NoteElementView: View {
                     } else {
                         Text(textElement.content)
                             .frame(maxWidth: .infinity, alignment: .leading)
+                            .lineLimit(nil)
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
                             .onTapGesture {
                                 editText = textElement.content
                                 isEditing = true
