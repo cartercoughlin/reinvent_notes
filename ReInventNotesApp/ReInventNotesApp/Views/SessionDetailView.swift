@@ -137,22 +137,28 @@ struct NoteElementView: View {
                     LongPressGesture(minimumDuration: 0.5)
                         .sequenced(before: DragGesture())
                         .onChanged { value in
+                            print("Gesture changed: \(value)")
                             switch value {
                             case .second(true, let drag):
                                 isDragging = true
                                 if let drag = drag {
                                     dragOffset = drag.translation
+                                    print("Dragging: \(drag.translation)")
                                 }
                             default:
                                 break
                             }
                         }
                         .onEnded { value in
+                            print("Gesture ended: \(value)")
                             switch value {
                             case .second(true, let drag):
                                 if let drag = drag {
+                                    print("Drag ended with translation: \(drag.translation)")
+
                                     // Check for swipe to delete
                                     if abs(drag.translation.width) > 100 {
+                                        print("Deleting element")
                                         notesManager.deleteNoteElement(in: session, elementId: element.id)
                                         isDragging = false
                                         dragOffset = .zero
@@ -167,6 +173,7 @@ struct NoteElementView: View {
                                                 min(currentIndex + 1, session.content.count - 1) :
                                                 max(currentIndex - 1, 0)
 
+                                            print("Reordering from \(currentIndex) to \(newIndex)")
                                             if newIndex != currentIndex {
                                                 notesManager.reorderNoteElements(in: session, from: currentIndex, to: newIndex > currentIndex ? newIndex + 1 : newIndex)
                                             }

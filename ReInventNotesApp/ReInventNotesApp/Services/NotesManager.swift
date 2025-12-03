@@ -53,17 +53,22 @@ class NotesManager: ObservableObject {
     
     func addDrawingElement(to session: SessionNote, paths: [DrawingPath]) {
         guard let index = sessions.firstIndex(where: { $0.id == session.id }) else { return }
-        
+
+        print("Adding drawing with \(paths.count) paths")
+        for (i, path) in paths.enumerated() {
+            print("Path \(i): \(path.points.count) points, color: \(path.color)")
+        }
+
         let position = sessions[index].content.count
         var drawingElement = DrawingElement(position: position)
         drawingElement.paths = paths
         sessions[index].content.append(.drawing(drawingElement))
         sessions[index].updatedAt = Date()
-        
+
         if currentSession?.id == session.id {
             currentSession = sessions[index]
         }
-        
+
         saveNotes()
     }
     
@@ -98,15 +103,21 @@ class NotesManager: ObservableObject {
     }
     
     func deleteNoteElement(in session: SessionNote, elementId: UUID) {
-        guard let sessionIndex = sessions.firstIndex(where: { $0.id == session.id }) else { return }
-        
+        print("deleteNoteElement called for element: \(elementId)")
+        guard let sessionIndex = sessions.firstIndex(where: { $0.id == session.id }) else {
+            print("Session not found!")
+            return
+        }
+
+        print("Found session at index \(sessionIndex), content count: \(sessions[sessionIndex].content.count)")
         sessions[sessionIndex].content.removeAll { $0.id == elementId }
+        print("After delete, content count: \(sessions[sessionIndex].content.count)")
         sessions[sessionIndex].updatedAt = Date()
-        
+
         if currentSession?.id == session.id {
             currentSession = sessions[sessionIndex]
         }
-        
+
         saveNotes()
     }
     
@@ -147,11 +158,23 @@ class NotesManager: ObservableObject {
             saveNotes() // Create the initial empty file
             return
         }
-        
+
         do {
             let data = try Data(contentsOf: notesFileURL)
             sessions = try JSONDecoder().decode([SessionNote].self, from: data)
             print("Successfully loaded \(sessions.count) sessions")
+
+            // Debug: Check drawing elements
+            for session in sessions {
+                for element in session.content {
+                    if case .drawing(let drawingElement) = element {
+                        print("Loaded drawing with \(drawingElement.paths.count) paths")
+                        for (i, path) in drawingElement.paths.enumerated() {
+                            print("  Path \(i): \(path.points.count) points")
+                        }
+                    }
+                }
+            }
         } catch {
             print("Failed to load notes: \(error)")
             sessions = []

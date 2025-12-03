@@ -189,27 +189,77 @@ struct DrawingView: View {
 
 struct DrawingDisplayView: View {
     let paths: [DrawingPath]
-    
+
     var body: some View {
         Canvas { context, size in
+            print("DrawingDisplayView rendering \(paths.count) paths in size: \(size)")
+
+            // Calculate bounding box of all paths
+            var minX = CGFloat.infinity
+            var minY = CGFloat.infinity
+            var maxX = -CGFloat.infinity
+            var maxY = -CGFloat.infinity
+
             for path in paths {
-                var cgPath = Path()
-                if let firstPoint = path.points.first {
-                    cgPath.move(to: firstPoint)
-                    for point in path.points.dropFirst() {
-                        cgPath.addLine(to: point)
-                    }
+                for point in path.points {
+                    minX = min(minX, point.x)
+                    minY = min(minY, point.y)
+                    maxX = max(maxX, point.x)
+                    maxY = max(maxY, point.y)
                 }
-                
-                context.stroke(
-                    cgPath,
-                    with: .color(colorFromString(path.color)),
-                    lineWidth: path.width
-                )
+            }
+
+            // If we have valid bounds, calculate scale and offset
+            if minX != .infinity && maxX != -.infinity {
+                let drawingWidth = maxX - minX
+                let drawingHeight = maxY - minY
+
+                print("Drawing bounds: x[\(minX), \(maxX)] y[\(minY), \(maxY)]")
+                print("Drawing size: \(drawingWidth) x \(drawingHeight)")
+
+                // Calculate scale to fit in the display size with some padding
+                let padding: CGFloat = 10
+                let scaleX = (size.width - padding * 2) / drawingWidth
+                let scaleY = (size.height - padding * 2) / drawingHeight
+                let scale = min(scaleX, scaleY)
+
+                print("Scale: \(scale)")
+
+                // Calculate offset to center the drawing
+                let scaledWidth = drawingWidth * scale
+                let scaledHeight = drawingHeight * scale
+                let offsetX = (size.width - scaledWidth) / 2 - minX * scale
+                let offsetY = (size.height - scaledHeight) / 2 - minY * scale
+
+                for (i, path) in paths.enumerated() {
+                    print("  Path \(i): \(path.points.count) points, color: \(path.color)")
+                    var cgPath = Path()
+                    if let firstPoint = path.points.first {
+                        let scaledPoint = CGPoint(
+                            x: firstPoint.x * scale + offsetX,
+                            y: firstPoint.y * scale + offsetY
+                        )
+                        cgPath.move(to: scaledPoint)
+
+                        for point in path.points.dropFirst() {
+                            let scaledPoint = CGPoint(
+                                x: point.x * scale + offsetX,
+                                y: point.y * scale + offsetY
+                            )
+                            cgPath.addLine(to: scaledPoint)
+                        }
+                    }
+
+                    context.stroke(
+                        cgPath,
+                        with: .color(colorFromString(path.color)),
+                        lineWidth: path.width * scale
+                    )
+                }
             }
         }
     }
-    
+
     private func colorFromString(_ colorString: String) -> Color {
         switch colorString {
         case "orange": return Color.orange
