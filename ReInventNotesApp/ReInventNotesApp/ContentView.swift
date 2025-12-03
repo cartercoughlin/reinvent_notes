@@ -54,7 +54,7 @@ struct ContentView: View {
                                 UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
                             }
                         }
-                        .buttonStyle(RainbowBorderButtonStyle(theme: themeManager.theme))
+                        .buttonStyle(RainbowBorderButtonStyle(theme: themeManager.theme, compact: true))
                     } else if notesManager.currentSession != nil {
                         Button("Edit") {
                             if let session = notesManager.currentSession {
@@ -69,7 +69,7 @@ struct ContentView: View {
                         }) {
                             Image(systemName: "plus")
                         }
-                        .buttonStyle(RainbowBorderButtonStyle(theme: themeManager.theme))
+                        .buttonStyle(RainbowBorderButtonStyle(theme: themeManager.theme, compact: true))
                     }
                 }
             }

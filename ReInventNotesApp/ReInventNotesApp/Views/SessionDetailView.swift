@@ -17,16 +17,22 @@ struct SessionDetailView: View {
             // Notes Content
             ScrollViewReader { proxy in
                 ScrollView {
-                    LazyVStack(spacing: 12) {
+                    VStack(spacing: 12) {
                         ForEach(session.content) { element in
                             NoteElementView(element: element, session: session)
                                 .environmentObject(themeManager)
                                 .environmentObject(notesManager)
                                 .id(element.id)
                         }
+
+                        // Add spacer at bottom to ensure content can scroll past input controls
+                        Color.clear
+                            .frame(height: 150)
+                            .id("bottomSpacer")
                     }
                     .padding()
                 }
+                .scrollDismissesKeyboard(.interactively)
                 .onChange(of: session.content.count) {
                     // Auto-scroll to bottom when new content is added
                     if let lastElement = session.content.last {
@@ -93,13 +99,6 @@ struct SessionDetailView: View {
             .padding()
             .background(themeManager.theme.backgroundColor)
         }
-        .onTapGesture {
-            if showingTextInput && !isTextFieldFocused {
-                showingTextInput = false
-                newText = ""
-                isTextInputActive = false
-            }
-        }
         .onChange(of: isTextFieldFocused) {
             isTextInputActive = isTextFieldFocused && showingTextInput
         }
@@ -128,12 +127,63 @@ struct NoteElementView: View {
     
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            // Timestamp
+            // Timestamp - Drag handle area
             Text(timestamp.formatted(date: .omitted, time: .shortened))
                 .font(.caption2)
                 .foregroundColor(themeManager.theme.secondaryTextColor)
                 .frame(width: 50, alignment: .leading)
-            
+                .contentShape(Rectangle())
+                .highPriorityGesture(
+                    LongPressGesture(minimumDuration: 0.5)
+                        .sequenced(before: DragGesture())
+                        .onChanged { value in
+                            switch value {
+                            case .second(true, let drag):
+                                isDragging = true
+                                if let drag = drag {
+                                    dragOffset = drag.translation
+                                }
+                            default:
+                                break
+                            }
+                        }
+                        .onEnded { value in
+                            switch value {
+                            case .second(true, let drag):
+                                if let drag = drag {
+                                    // Check for swipe to delete
+                                    if abs(drag.translation.width) > 100 {
+                                        notesManager.deleteNoteElement(in: session, elementId: element.id)
+                                        isDragging = false
+                                        dragOffset = .zero
+                                        return
+                                    }
+
+                                    // Check for reorder
+                                    let dragDistance = abs(drag.translation.height)
+                                    if dragDistance > 50 {
+                                        if let currentIndex = session.content.firstIndex(where: { $0.id == element.id }) {
+                                            let newIndex = drag.translation.height > 0 ?
+                                                min(currentIndex + 1, session.content.count - 1) :
+                                                max(currentIndex - 1, 0)
+
+                                            if newIndex != currentIndex {
+                                                notesManager.reorderNoteElements(in: session, from: currentIndex, to: newIndex > currentIndex ? newIndex + 1 : newIndex)
+                                            }
+                                        }
+                                    }
+                                }
+                            default:
+                                break
+                            }
+
+                            isDragging = false
+                            withAnimation(.spring()) {
+                                dragOffset = .zero
+                            }
+                        }
+                )
+
             // Content
             VStack(alignment: .leading, spacing: 8) {
                 switch element {
@@ -160,20 +210,23 @@ struct NoteElementView: View {
                             .foregroundColor(themeManager.theme.primaryTextColor)
                         }
                     } else {
-                        Text(textElement.content)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .lineLimit(nil)
-                            .multilineTextAlignment(.leading)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .onTapGesture {
-                                editText = textElement.content
-                                isEditing = true
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                    isEditFieldFocused = true
-                                }
+                        Button(action: {
+                            editText = textElement.content
+                            isEditing = true
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                isEditFieldFocused = true
                             }
+                        }) {
+                            Text(textElement.content)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .lineLimit(nil)
+                                .multilineTextAlignment(.leading)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .foregroundColor(themeManager.theme.primaryTextColor)
+                        }
+                        .buttonStyle(PlainButtonStyle())
                     }
-                
+
                 case .photo(let photoElement):
                     if let image = UIImage(data: photoElement.imageData) {
                         Image(uiImage: image)
@@ -181,14 +234,14 @@ struct NoteElementView: View {
                             .aspectRatio(contentMode: .fit)
                             .frame(maxHeight: 200)
                             .cornerRadius(8)
-                        
+
                         if !photoElement.caption.isEmpty {
                             Text(photoElement.caption)
                                 .font(.caption)
                                 .foregroundColor(themeManager.theme.secondaryTextColor)
                         }
                     }
-                
+
                 case .drawing(let drawingElement):
                     DrawingDisplayView(paths: drawingElement.paths)
                         .frame(height: 150)
@@ -203,56 +256,6 @@ struct NoteElementView: View {
         .offset(dragOffset)
         .scaleEffect(isDragging ? 1.05 : 1.0)
         .shadow(radius: isDragging ? 8 : 0)
-        .gesture(
-            LongPressGesture(minimumDuration: 0.5)
-                .sequenced(before: DragGesture())
-                .onChanged { value in
-                    switch value {
-                    case .second(true, let drag):
-                        isDragging = true
-                        if let drag = drag {
-                            dragOffset = drag.translation
-                        }
-                    default:
-                        break
-                    }
-                }
-                .onEnded { value in
-                    switch value {
-                    case .second(true, let drag):
-                        if let drag = drag {
-                            // Check for swipe to delete
-                            if abs(drag.translation.width) > 100 {
-                                notesManager.deleteNoteElement(in: session, elementId: element.id)
-                                isDragging = false
-                                dragOffset = .zero
-                                return
-                            }
-                            
-                            // Check for reorder
-                            let dragDistance = abs(drag.translation.height)
-                            if dragDistance > 50 {
-                                if let currentIndex = session.content.firstIndex(where: { $0.id == element.id }) {
-                                    let newIndex = drag.translation.height > 0 ? 
-                                        min(currentIndex + 1, session.content.count - 1) : 
-                                        max(currentIndex - 1, 0)
-                                    
-                                    if newIndex != currentIndex {
-                                        notesManager.reorderNoteElements(in: session, from: currentIndex, to: newIndex > currentIndex ? newIndex + 1 : newIndex)
-                                    }
-                                }
-                            }
-                        }
-                    default:
-                        break
-                    }
-                    
-                    isDragging = false
-                    withAnimation(.spring()) {
-                        dragOffset = .zero
-                    }
-                }
-        )
     }
     
     private var timestamp: Date {

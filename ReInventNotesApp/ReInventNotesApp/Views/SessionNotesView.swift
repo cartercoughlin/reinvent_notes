@@ -28,12 +28,12 @@ struct SessionNotesView: View {
                         Button("Done") {
                             UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
                         }
-                        .buttonStyle(RainbowBorderButtonStyle(theme: themeManager.theme))
+                        .buttonStyle(RainbowBorderButtonStyle(theme: themeManager.theme, compact: true))
                     } else {
                         Button("New Session") {
                             showingNewSessionSheet = true
                         }
-                        .buttonStyle(RainbowBorderButtonStyle(theme: themeManager.theme))
+                        .buttonStyle(RainbowBorderButtonStyle(theme: themeManager.theme, compact: true))
                     }
                 }
             }

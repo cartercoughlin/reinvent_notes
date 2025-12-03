@@ -46,17 +46,19 @@ class ReInventThemeManager: ObservableObject {
 // Rainbow border button style
 struct RainbowBorderButtonStyle: ButtonStyle {
     let theme: ReInventTheme
-    
+    var compact: Bool = false
+
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .padding(.horizontal, 20)
-            .padding(.vertical, 10)
-            .frame(minWidth: 80)
+            .font(.system(size: compact ? 14 : 16, weight: .medium))
+            .padding(.horizontal, compact ? 12 : 20)
+            .padding(.vertical, compact ? 6 : 10)
+            .frame(minWidth: compact ? 60 : 80)
             .background(theme.cardBackground)
             .foregroundStyle(theme.rainbowGradient)
-            .clipShape(RoundedRectangle(cornerRadius: 20))
+            .clipShape(RoundedRectangle(cornerRadius: compact ? 16 : 20))
             .overlay(
-                RoundedRectangle(cornerRadius: 20)
+                RoundedRectangle(cornerRadius: compact ? 16 : 20)
                     .stroke(theme.rainbowGradient, lineWidth: 2)
             )
             .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
