@@ -5,13 +5,16 @@ A SwiftUI app for taking comprehensive notes during AWS re:Invent conference ses
 ## Features
 
 - **Session Management**: Create and organize notes by conference session
-- **Rich Note Taking**: 
+- **Rich Note Taking**:
   - Text notes with timestamps
   - In-line photo capture
   - Drawing/sketching capabilities
+  - Tap to expand images and drawings for full-screen viewing
+  - Pinch-to-zoom on expanded images
 - **AWS re:Invent Theming**: Uses official AWS brand colors and styling
 - **Data Persistence**: Notes saved to device storage and persist between app launches
 - **Session Details**: Track session codes, speakers, and tracks
+- **Intuitive Editing**: Tap the "Edit" button to modify session titles
 
 ## Project Structure
 

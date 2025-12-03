@@ -25,12 +25,6 @@ struct ContentView: View {
             }
             .navigationTitle(notesManager.currentSession?.title ?? "Notes")
             .navigationBarTitleDisplayMode(.large)
-            .onTapGesture {
-                if let session = notesManager.currentSession {
-                    editedTitle = session.title
-                    isEditingTitle = true
-                }
-            }
             .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {

@@ -11,6 +11,8 @@ struct SessionDetailView: View {
     @State private var newText = ""
     @FocusState private var isTextFieldFocused: Bool
     @State private var scrollToBottom = false
+    @State private var expandedImage: UIImage?
+    @State private var expandedDrawing: [DrawingPath]?
 
     var body: some View {
         VStack {
@@ -19,7 +21,12 @@ struct SessionDetailView: View {
                 ScrollView {
                     VStack(spacing: 12) {
                         ForEach(session.content) { element in
-                            NoteElementView(element: element, session: session)
+                            NoteElementView(
+                                element: element,
+                                session: session,
+                                expandedImage: $expandedImage,
+                                expandedDrawing: $expandedDrawing
+                            )
                                 .environmentObject(themeManager)
                                 .environmentObject(notesManager)
                                 .id(element.id)
@@ -111,12 +118,28 @@ struct SessionDetailView: View {
                 .environmentObject(notesManager)
                 .environmentObject(themeManager)
         }
+        .sheet(item: Binding(
+            get: { expandedImage.map { ExpandedImageWrapper(image: $0) } },
+            set: { expandedImage = $0?.image }
+        )) { wrapper in
+            ExpandedImageView(image: wrapper.image)
+                .environmentObject(themeManager)
+        }
+        .sheet(item: Binding(
+            get: { expandedDrawing.map { ExpandedDrawingWrapper(paths: $0) } },
+            set: { expandedDrawing = $0?.paths }
+        )) { wrapper in
+            ExpandedDrawingView(paths: wrapper.paths)
+                .environmentObject(themeManager)
+        }
     }
 }
 
 struct NoteElementView: View {
     let element: NoteElement
     let session: SessionNote
+    @Binding var expandedImage: UIImage?
+    @Binding var expandedDrawing: [DrawingPath]?
     @EnvironmentObject var themeManager: ReInventThemeManager
     @EnvironmentObject var notesManager: NotesManager
     @State private var isEditing = false
@@ -241,6 +264,9 @@ struct NoteElementView: View {
                             .aspectRatio(contentMode: .fit)
                             .frame(maxHeight: 200)
                             .cornerRadius(8)
+                            .onTapGesture {
+                                expandedImage = image
+                            }
 
                         if !photoElement.caption.isEmpty {
                             Text(photoElement.caption)
@@ -254,6 +280,9 @@ struct NoteElementView: View {
                         .frame(height: 150)
                         .background(Color(.systemGray6))
                         .cornerRadius(8)
+                        .onTapGesture {
+                            expandedDrawing = drawingElement.paths
+                        }
                 }
             }
         }
@@ -270,6 +299,105 @@ struct NoteElementView: View {
         case .text(let textElement): return textElement.timestamp
         case .photo(let photoElement): return photoElement.timestamp
         case .drawing(let drawingElement): return drawingElement.timestamp
+        }
+    }
+}
+
+// Wrapper structs for sheet presentation
+struct ExpandedImageWrapper: Identifiable {
+    let id = UUID()
+    let image: UIImage
+}
+
+struct ExpandedDrawingWrapper: Identifiable {
+    let id = UUID()
+    let paths: [DrawingPath]
+}
+
+// Expanded image view
+struct ExpandedImageView: View {
+    let image: UIImage
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject var themeManager: ReInventThemeManager
+    @State private var scale: CGFloat = 1.0
+    @State private var lastScale: CGFloat = 1.0
+
+    var body: some View {
+        NavigationView {
+            ZStack {
+                themeManager.theme.backgroundColor
+                    .ignoresSafeArea()
+
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .scaleEffect(scale)
+                    .gesture(
+                        MagnificationGesture()
+                            .onChanged { value in
+                                scale = lastScale * value
+                            }
+                            .onEnded { _ in
+                                lastScale = scale
+                                if scale < 1.0 {
+                                    withAnimation {
+                                        scale = 1.0
+                                        lastScale = 1.0
+                                    }
+                                }
+                            }
+                    )
+                    .onTapGesture(count: 2) {
+                        withAnimation {
+                            if scale > 1.0 {
+                                scale = 1.0
+                                lastScale = 1.0
+                            } else {
+                                scale = 2.0
+                                lastScale = 2.0
+                            }
+                        }
+                    }
+            }
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                    .foregroundColor(themeManager.theme.primaryTextColor)
+                }
+            }
+            .toolbarColorScheme(.dark, for: .navigationBar)
+        }
+    }
+}
+
+// Expanded drawing view
+struct ExpandedDrawingView: View {
+    let paths: [DrawingPath]
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject var themeManager: ReInventThemeManager
+
+    var body: some View {
+        NavigationView {
+            ZStack {
+                themeManager.theme.backgroundColor
+                    .ignoresSafeArea()
+
+                DrawingDisplayView(paths: paths)
+                    .padding()
+            }
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                    .foregroundColor(themeManager.theme.primaryTextColor)
+                }
+            }
+            .toolbarColorScheme(.dark, for: .navigationBar)
         }
     }
 }
